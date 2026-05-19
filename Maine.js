@@ -1,9 +1,12 @@
-import { DB } from "https://deno.land/x/sqlite@v3.8/mod.ts";
+// Deno ka built-in KV database open kar rahe hain
+const kv = await Deno.openKv();
 
-// data.db file ko open kar rahe hain (Read-Only)
-const db = new DB("data.db");
+// Testing ke liye kuch dummy data pehle se daal dete hain
+// Jab aapka API chal jaye, toh aap aise hi aur data daal sakte hain
+await kv.set(["users", "000011112222"], { name: "Rahul Kumar (Test)", dob: "01-01-2000", gender: "Male", city: "Delhi" });
+await kv.set(["users", "555566667777"], { name: "Priya Sharma (Test)", dob: "15-08-2001", gender: "Female", city: "Mumbai" });
 
-Deno.serve((req) => {
+Deno.serve(async (req) => {
   const url = new URL(req.url);
 
   // 1. Home Page Endpoint
@@ -11,7 +14,7 @@ Deno.serve((req) => {
     return new Response(JSON.stringify({ 
       developer: "@mr_noobster",
       channel: "t.me/noob11001",
-      message: "API is Live. Use /search?id=NUMBER",
+      message: "API is Live (Deno KV). Use /search?id=NUMBER",
       credits: "@noob11001"
     }), {
       headers: { "content-type": "application/json" },
@@ -35,37 +38,25 @@ Deno.serve((req) => {
     }
 
     try {
-      // ⚠️ IMPORTANT: Image mein aapki repo ka naam 'icmr-mini-info-api' dikh raha hai.
-      // Agar icmr ke database mein table ka naam 'users' ke bajaye kuch aur hai, toh use yahan badlein.
-      // Agar columns ke naam alag hain toh 'name, dob, gender, city' ko bhi badal lein.
-      const rows = db.query("SELECT name, dob, gender, city FROM users WHERE aadhaar_no = ?", [id]);
+      // Deno KV se data fetch karna
+      const result = await kv.get(["users", id]);
 
-      if (rows.length > 0) {
-        const [name, dob, gender, city] = rows[0];
-        
-        // Response jisme start aur end dono jagah aapke credits hain
+      if (result.value) {
         return new Response(JSON.stringify({
-          developer: "@mr_noobster",        // First me credits
-          channel: "t.me/noob11001",         // First me credits
+          developer: "@mr_noobster",
+          channel: "t.me/noob11001",
           status: "success",
-          data: {
-            id: id,
-            name: name,
-            dob: dob,
-            gender: gender,
-            city: city
-          },
-          credits: "@noob11001"              // Last me credits
+          data: result.value,
+          credits: "@noob11001"
         }), {
           status: 200,
           headers: { "content-type": "application/json" },
         });
-
       } else {
         return new Response(JSON.stringify({ 
           developer: "@mr_noobster",
           channel: "t.me/noob11001",
-          error: "No data found for this number",
+          error: "No data found for this number in KV store",
           credits: "@noob11001"
         }), {
           status: 404,
@@ -88,3 +79,4 @@ Deno.serve((req) => {
 
   return new Response("Not Found", { status: 404 });
 });
+
