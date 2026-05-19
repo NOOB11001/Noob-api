@@ -1,12 +1,42 @@
-// Database ke bajaye hum standard fast In-Memory Map ka use kar rahe hain
-// Yeh bina kisi extra flag ke har platform par 100% chalta hai aur super fast hai
-const kvStore = new Map();
+// Deno Deploy ke built-in permanent Key-Value store ko open kar rahe hain
+const kv = await Deno.openKv();
 
-// Testing ke liye dummy data (Aap isme jitna chahein data badha sakte hain)
-kvStore.set("123456789012", { name: "Rahul Kumar (Test)", dob: "01-01-2000", gender: "Male", city: "Delhi" });
-kvStore.set("987654321098", { name: "Priya Sharma (Test)", dob: "15-08-2001", gender: "Female", city: "Mumbai" });
+// --- DUMMY DATA SEEDING (Sirf testing ke liye) ---
+// Note: Real production me aap alag se ek /add_user ka endpoint bana kar data insert kar sakte hain.
+await kv.set(["users", "123456789012"], {
+  name: "Rahul Kumar",
+  fathersName: "Sanjay Kumar",
+  phoneNumber: "9876543210",
+  otherNumber: "9123456789",
+  passportNumber: "A1234567",
+  aadharNumber: "[Aadhaar Redacted]",
+  age: "26",
+  gender: "Male",
+  address: "House No. 45, Near Metro Station",
+  district: "New Delhi",
+  pincode: "110001",
+  state: "Delhi",
+  town: "Connaught Place"
+});
 
-Deno.serve((req) => {
+await kv.set(["users", "987654321098"], {
+  name: "Priya Sharma",
+  fathersName: "Rajesh Sharma",
+  phoneNumber: "8765432109",
+  otherNumber: "",
+  passportNumber: "B8765432",
+  aadharNumber: "[Aadhaar Redacted]",
+  age: "24",
+  gender: "Female",
+  address: "Flat 202, Sunshine Apartments",
+  district: "Mumbai Suburban",
+  pincode: "400001",
+  state: "Maharashtra",
+  town: "Colaba"
+});
+// ------------------------------------------------
+
+Deno.serve(async (req) => {
   const url = new URL(req.url);
 
   // 1. Home Page Endpoint
@@ -17,7 +47,8 @@ Deno.serve((req) => {
       message: "API is Live. Use /search?id=NUMBER",
       credits: "@noob11001"
     }), {
-      headers: { "content-type": "application/json" },
+      status: 200,
+      headers: { "content-type": "application/json; charset=UTF-8" },
     });
   }
 
@@ -33,12 +64,13 @@ Deno.serve((req) => {
         credits: "@noob11001"
       }), {
         status: 400,
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json; charset=UTF-8" },
       });
     }
 
-    // Map se data check karna
-    const userData = kvStore.get(id);
+    // Deno KV database se data fetch karna
+    const result = await kv.get(["users", id]);
+    const userData = result.value;
 
     if (userData) {
       return new Response(JSON.stringify({
@@ -49,7 +81,7 @@ Deno.serve((req) => {
         credits: "@noob11001"
       }), {
         status: 200,
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json; charset=UTF-8" },
       });
     } else {
       return new Response(JSON.stringify({ 
@@ -59,10 +91,11 @@ Deno.serve((req) => {
         credits: "@noob11001"
       }), {
         status: 404,
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json; charset=UTF-8" },
       });
     }
   }
 
   return new Response("Not Found", { status: 404 });
 });
+
